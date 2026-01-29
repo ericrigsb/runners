@@ -1,0 +1,43 @@
+FROM ubuntu:22.04
+
+LABEL maintainer="eric@rigsb.net"
+LABEL description="Backup image with restic, kubectl, and database tools for Kubernetes backup jobs"
+
+# Set timezone environment variables to prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/New_York
+
+# Install packages including kubectl and latest restic
+RUN apt-get update && apt-get install -y \
+    bash \
+    curl \
+    postgresql-client \
+    tzdata \
+    ca-certificates \
+    wget \
+    jq \
+    bzip2 \
+    && KUBECTL_VERSION=v1.33.0 \
+    && echo "Downloading kubectl version: $KUBECTL_VERSION" \
+    && curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+    && chmod +x kubectl \
+    && ./kubectl version --client || (echo "kubectl download failed" && cat kubectl && exit 1) \
+    && mv kubectl /usr/local/bin/ \
+    && RESTIC_VERSION=$(curl -s https://api.github.com/repos/restic/restic/releases/latest | jq -r '.tag_name') \
+    && wget https://github.com/restic/restic/releases/download/${RESTIC_VERSION}/restic_${RESTIC_VERSION#v}_linux_amd64.bz2 \
+    && bunzip2 restic_${RESTIC_VERSION#v}_linux_amd64.bz2 \
+    && chmod +x restic_${RESTIC_VERSION#v}_linux_amd64 \
+    && mv restic_${RESTIC_VERSION#v}_linux_amd64 /usr/local/bin/restic \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user and add to root group for SA token access
+RUN groupadd -f backup && \
+    (id -u backup >/dev/null 2>&1 || useradd -u 1001 -g backup backup) && \
+    usermod -aG root backup
+
+WORKDIR /backup
+
+USER backup
+
+CMD ["/bin/bash"]
