@@ -1,0 +1,11 @@
+FROM gitea/runner-images:ubuntu-latest
+
+RUN apt-get update && \
+    apt-get install -y \
+    ansible \
+    ansible-lint \
+    python3 \
+    python3-pip \
+    python3-passlib \
+    --no-install-recommends && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
