@@ -1,0 +1,3 @@
+FROM gitea/runner-images:ubuntu-latest
+
+RUN pip3 install --no-cache-dir --break-system-packages ansible ansible-lint passlib
